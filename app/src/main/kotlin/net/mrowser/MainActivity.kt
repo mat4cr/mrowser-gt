@@ -144,7 +144,12 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
-        layout.onLongBack = { if (!chromeClient.isFullscreen) chrome.requestReveal(atTop = true) }
+        // Refuse the reveal in fullscreen (the bar would sit under the video) and report
+        // it, so the hold falls through to the normal BACK chain and exits fullscreen.
+        layout.onLongBack = {
+            if (chromeClient.isFullscreen) false
+            else { chrome.requestReveal(atTop = true); true }
+        }
 
         homeView.bind(
             repository = favorites,

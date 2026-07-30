@@ -30,8 +30,12 @@ class CursorLayout @JvmOverloads constructor(
     /** Set by the Activity; fired when BACK is pressed at the first page (no history left). */
     var onExitPage: () -> Unit = {}
 
-    /** Set by the Activity; fired when BACK is held. Summons the chrome bar. */
-    var onLongBack: () -> Unit = {}
+    /**
+     * Set by the Activity; fired when BACK is held. Summons the chrome bar.
+     * Returns true if it consumed the hold — false means "I did nothing with it"
+     * (e.g. during HTML5 fullscreen), and the release falls through to handleBack().
+     */
+    var onLongBack: () -> Boolean = { false }
 
     var playChip: android.view.View? = null
     var onChipClick: () -> Unit = {}
@@ -51,7 +55,9 @@ class CursorLayout @JvmOverloads constructor(
 
     private var backDown = false
     private var backLongPressed = false
-    private val backLongPress = Runnable { backLongPressed = true; onLongBack() }
+    // Only a hold that onLongBack actually consumed counts as a long-press; a refused
+    // one leaves the flag false so the release still runs the normal BACK chain.
+    private val backLongPress = Runnable { backLongPressed = onLongBack() }
 
     init {
         setWillNotDraw(false)
@@ -122,22 +128,30 @@ class CursorLayout @JvmOverloads constructor(
     /**
      * BACK tap keeps every meaning it has today (see handleBack); BACK held summons
      * the chrome bar. Most TV remotes have no MENU key, which was the only other way
-     * to open it. Repeated ACTION_DOWNs arrive while the key is held — the backDown
-     * flag arms the timer once, the same way okDown does.
+     * to open it. The routing itself is the pure BackGesture — this is just the
+     * applier: it owns the timer, the flags, and the BACK chain.
      */
     private fun handleBackKey(event: KeyEvent): Boolean {
-        when (event.action) {
-            KeyEvent.ACTION_DOWN -> if (!backDown) {
+        when (BackGesture.decide(event.action, backDown, backLongPressed, chrome.isVisible)) {
+            BackGesture.Decision.ArmLongPress -> {
                 backDown = true
                 backLongPressed = false
-                // A bar that's already up keeps BACK as "close me" — don't arm the reveal.
-                if (!chrome.isVisible) longPressHandler.postDelayed(backLongPress, LONG_PRESS_MS)
+                longPressHandler.postDelayed(backLongPress, LONG_PRESS_MS)
             }
-            KeyEvent.ACTION_UP -> {
+            BackGesture.Decision.BeginWithoutArming -> {
+                backDown = true
+                backLongPressed = false
+            }
+            BackGesture.Decision.RunTapChain -> {
                 backDown = false
                 longPressHandler.removeCallbacks(backLongPress)
-                if (!backLongPressed) return handleBack()
+                return handleBack()
             }
+            BackGesture.Decision.Swallow -> {
+                backDown = false
+                longPressHandler.removeCallbacks(backLongPress)
+            }
+            BackGesture.Decision.Ignore -> Unit
         }
         return true
     }
