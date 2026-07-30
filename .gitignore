@@ -20,5 +20,8 @@ local.properties
 *.jks
 keystore.properties
 
+# Agent scratch (ledgers, task briefs, review packages)
+.superpowers/
+
 # OS
 .DS_Store
