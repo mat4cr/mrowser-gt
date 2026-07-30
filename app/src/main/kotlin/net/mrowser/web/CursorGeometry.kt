@@ -31,4 +31,24 @@ object CursorGeometry {
     fun isAtTopEdge(y: Float, zonePx: Float): Boolean = y <= zonePx
 
     fun isAtBottomEdge(y: Float, height: Int, zonePx: Float): Boolean = y >= height - zonePx
+
+    /**
+     * Vertical page-scroll delta for one frame, or 0 when the page must not move.
+     * [canScrollUp] / [canScrollDown] are the clamp: the cursor pins to y=0, which
+     * keeps it inside the top edge zone forever, so without the gate the caller
+     * scrolls the page up without bound and blank space opens above it.
+     */
+    fun scrollStep(
+        dirY: Int,
+        y: Float,
+        height: Int,
+        zonePx: Float,
+        stepPx: Int,
+        canScrollUp: Boolean,
+        canScrollDown: Boolean
+    ): Int = when {
+        dirY < 0 && canScrollUp && isAtTopEdge(y, zonePx) -> -stepPx
+        dirY > 0 && canScrollDown && isAtBottomEdge(y, height, zonePx) -> stepPx
+        else -> 0
+    }
 }

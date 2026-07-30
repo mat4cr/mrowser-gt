@@ -41,8 +41,17 @@ class CursorController(
                 CursorGeometry.Point(x, y), dirX, dirY, speed, webView.width, webView.height
             )
             x = p.x; y = p.y
-            if (dirY < 0 && CursorGeometry.isAtTopEdge(y, edgeZonePx)) webView.scrollBy(0, -SCROLL_STEP_PX)
-            if (dirY > 0 && CursorGeometry.isAtBottomEdge(y, webView.height, edgeZonePx)) webView.scrollBy(0, SCROLL_STEP_PX)
+            val scroll = CursorGeometry.scrollStep(
+                dirY, y, webView.height, edgeZonePx, SCROLL_STEP_PX,
+                canScrollUp = webView.canScrollVertically(-1),
+                canScrollDown = webView.canScrollVertically(1)
+            )
+            if (scroll != 0) {
+                webView.scrollBy(0, scroll)
+                // The boolean gate can't stop the final step overshooting the top by
+                // up to SCROLL_STEP_PX; pin it so no blank strip opens above the page.
+                if (webView.scrollY < 0) webView.scrollTo(0, 0)
+            }
             invalidate()
             handler.postDelayed(this, FRAME_MS)
         }
