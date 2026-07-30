@@ -3,6 +3,7 @@ package net.mrowser.home
 import android.content.Context
 import android.content.res.ColorStateList
 import android.graphics.Color
+import android.graphics.drawable.GradientDrawable
 import android.util.AttributeSet
 import android.view.LayoutInflater
 import android.view.View
@@ -66,6 +67,16 @@ class HomeView @JvmOverloads constructor(
         this.onEdit = onEdit
         this.onHistory = onHistory
         this.onSettings = onSettings
+        applyRandomBackground()
+    }
+
+    /** Rolled once per launch — in bind, not show — so the color doesn't change
+     *  every time the user returns to the home overlay. */
+    private fun applyRandomBackground() {
+        val g = HomeBackgrounds.pick(System.currentTimeMillis())
+        background = GradientDrawable(
+            GradientDrawable.Orientation.TOP_BOTTOM, intArrayOf(g.top, g.bottom)
+        )
     }
 
     fun show() {
