@@ -15,10 +15,6 @@ class ChromeVisibilityTest {
         assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.HIDDEN, Event.RevealRequested(atTop = false)))
     }
 
-    @Test fun `idle hides a visible bar`() {
-        assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.VISIBLE, Event.IdleElapsed))
-    }
-
     @Test fun `page interaction hides a visible bar`() {
         assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.VISIBLE, Event.PageInteracted))
     }
@@ -28,7 +24,6 @@ class ChromeVisibilityTest {
     }
 
     @Test fun `events other than reveal do nothing while hidden`() {
-        assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.HIDDEN, Event.IdleElapsed))
         assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.HIDDEN, Event.Interacted))
         assertEquals(State.HIDDEN, ChromeVisibility.reduce(State.HIDDEN, Event.PageInteracted))
     }

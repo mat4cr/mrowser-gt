@@ -69,12 +69,13 @@ class CursorLayout @JvmOverloads constructor(
         if (event.keyCode == KeyEvent.KEYCODE_BACK) return handleBackKey(event)
         if (event.keyCode == KeyEvent.KEYCODE_MENU) {
             if (event.action == KeyEvent.ACTION_UP) {
-                if (chrome.isActive) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
+                if (chrome.isVisible) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
             }
             return true
         }
-        // Only an actively-opened bar takes keys; a passive on-load reveal leaves the cursor working.
-        if (chrome.isActive) return super.dispatchKeyEvent(event)
+        // While the bar is up it takes the keys: let focus search move through its buttons
+        // and the URL field instead of driving the cursor.
+        if (chrome.isVisible) return super.dispatchKeyEvent(event)
 
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> return handleOk(event)
