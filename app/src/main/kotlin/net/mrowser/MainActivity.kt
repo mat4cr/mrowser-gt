@@ -142,6 +142,7 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
+        layout.onLongBack = { if (!chromeClient.isFullscreen) chrome.requestReveal(atTop = true) }
 
         homeView.bind(
             repository = favorites,
@@ -208,6 +209,14 @@ class MainActivity : Activity() {
         clearHistoryOnLoad = true
         webView.loadUrl(url)
         chrome.onPageInteracted()
+        showNavHintOnce()
+    }
+
+    /** One-time nudge: the chrome bar has no MENU key to summon it on most TV remotes. */
+    private fun showNavHintOnce() {
+        if (settings.get().navHintShown) return
+        settings.update(settings.get().copy(navHintShown = true))
+        Toast.makeText(this, R.string.nav_hint, Toast.LENGTH_LONG).show()
     }
 
     private fun showHome() {

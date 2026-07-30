@@ -30,6 +30,9 @@ class CursorLayout @JvmOverloads constructor(
     /** Set by the Activity; fired when BACK is pressed at the first page (no history left). */
     var onExitPage: () -> Unit = {}
 
+    /** Set by the Activity; fired when BACK is held. Summons the chrome bar. */
+    var onLongBack: () -> Unit = {}
+
     var playChip: android.view.View? = null
     var onChipClick: () -> Unit = {}
 
@@ -46,6 +49,10 @@ class CursorLayout @JvmOverloads constructor(
     private var longPressed = false
     private val longPress = Runnable { longPressed = true; cursor.toggleMode() }
 
+    private var backDown = false
+    private var backLongPressed = false
+    private val backLongPress = Runnable { backLongPressed = true; onLongBack() }
+
     init {
         setWillNotDraw(false)
         isFocusable = true
@@ -53,10 +60,7 @@ class CursorLayout @JvmOverloads constructor(
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_UP) return handleBack()
-            return true
-        }
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) return handleBackKey(event)
         if (event.keyCode == KeyEvent.KEYCODE_MENU) {
             if (event.action == KeyEvent.ACTION_UP) {
                 if (chrome.isActive) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
@@ -96,7 +100,7 @@ class CursorLayout @JvmOverloads constructor(
             KeyEvent.ACTION_DOWN -> if (!okDown) {
                 okDown = true
                 longPressed = false
-                longPressHandler.postDelayed(longPress, 500)
+                longPressHandler.postDelayed(longPress, LONG_PRESS_MS)
             }
             KeyEvent.ACTION_UP -> {
                 okDown = false
@@ -113,6 +117,29 @@ class CursorLayout @JvmOverloads constructor(
         val chip = playChip ?: return false
         if (chip.visibility != android.view.View.VISIBLE) return false
         return x >= chip.left && x <= chip.right && y >= chip.top && y <= chip.bottom
+    }
+
+    /**
+     * BACK tap keeps every meaning it has today (see handleBack); BACK held summons
+     * the chrome bar. Most TV remotes have no MENU key, which was the only other way
+     * to open it. Repeated ACTION_DOWNs arrive while the key is held — the backDown
+     * flag arms the timer once, the same way okDown does.
+     */
+    private fun handleBackKey(event: KeyEvent): Boolean {
+        when (event.action) {
+            KeyEvent.ACTION_DOWN -> if (!backDown) {
+                backDown = true
+                backLongPressed = false
+                // A bar that's already up keeps BACK as "close me" — don't arm the reveal.
+                if (!chrome.isVisible) longPressHandler.postDelayed(backLongPress, LONG_PRESS_MS)
+            }
+            KeyEvent.ACTION_UP -> {
+                backDown = false
+                longPressHandler.removeCallbacks(backLongPress)
+                if (!backLongPressed) return handleBack()
+            }
+        }
+        return true
     }
 
     private fun handleBack(): Boolean {
@@ -133,4 +160,6 @@ class CursorLayout @JvmOverloads constructor(
             canvas.drawCircle(cursor.x, cursor.y, r, outlinePaint)
         }
     }
+
+    companion object { const val LONG_PRESS_MS = 500L }
 }
