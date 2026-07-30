@@ -10,6 +10,8 @@ object SettingsJson {
         JSONObject()
             .put("autoOpenPlayer", settings.autoOpenPlayer)
             .put("cursorSpeed", settings.cursorSpeed.name)
+            .put("seeded", settings.seeded)
+            .put("navHintShown", settings.navHintShown)
             .toString()
 
     fun fromJson(json: String): Settings {
@@ -19,7 +21,9 @@ object SettingsJson {
             val defaults = Settings()
             Settings(
                 autoOpenPlayer = o.optBoolean("autoOpenPlayer", defaults.autoOpenPlayer),
-                cursorSpeed = enumOrDefault(o.optString("cursorSpeed"), defaults.cursorSpeed)
+                cursorSpeed = enumOrDefault(o.optString("cursorSpeed"), defaults.cursorSpeed),
+                seeded = o.optBoolean("seeded", defaults.seeded),
+                navHintShown = o.optBoolean("navHintShown", defaults.navHintShown)
             )
         } catch (e: JSONException) {
             Settings()
