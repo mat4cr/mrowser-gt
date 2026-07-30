@@ -244,10 +244,12 @@ class MainActivity : Activity() {
 
     /** First launch only: write the shipped starter favorites. Guarded by a persisted
      *  flag rather than an is-empty check — a user who deletes them must not get them
-     *  back. Existing installs have no flag in settings.json, so they seed once on upgrade. */
+     *  back. Existing installs have no flag in settings.json, so they seed once on upgrade.
+     *  Added in reverse: FavoritesOps.add prepends, so seeding back-to-front leaves the
+     *  grid in DefaultFavorites.ALL order. */
     private fun seedDefaultFavorites() {
         if (settings.get().seeded) return
-        DefaultFavorites.ALL.forEach { favorites.add(it) }
+        DefaultFavorites.ALL.asReversed().forEach { favorites.add(it) }
         settings.update(settings.get().copy(seeded = true))
     }
 
