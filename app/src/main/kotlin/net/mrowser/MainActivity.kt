@@ -17,6 +17,7 @@ import android.widget.ImageButton
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import net.mrowser.data.DefaultFavorites
 import net.mrowser.data.Favorite
 import net.mrowser.data.HistoryEntry
 import net.mrowser.data.JsonFavoritesStore
@@ -84,6 +85,7 @@ class MainActivity : Activity() {
         favorites = JsonFavoritesStore(File(filesDir, "favorites.json"))
         history = JsonHistoryStore(File(filesDir, "history.json"))
         settings = JsonSettingsStore(File(filesDir, "settings.json"))
+        seedDefaultFavorites()
 
         sniffer = StreamSniffer(
             userAgent = { webView.settings.userAgentString },
@@ -142,6 +144,12 @@ class MainActivity : Activity() {
         layout.onChipClick = { handoff.play() }
         layout.onBack = { chromeClient.exitIfFullscreen() }
         layout.onExitPage = { confirmCloseTab() }
+        // Refuse the reveal in fullscreen (the bar would sit under the video) and report
+        // it, so the hold falls through to the normal BACK chain and exits fullscreen.
+        layout.onLongBack = {
+            if (chromeClient.isFullscreen) false
+            else { chrome.requestReveal(atTop = true); true }
+        }
 
         homeView.bind(
             repository = favorites,
@@ -208,6 +216,14 @@ class MainActivity : Activity() {
         clearHistoryOnLoad = true
         webView.loadUrl(url)
         chrome.onPageInteracted()
+        showNavHintOnce()
+    }
+
+    /** One-time nudge: the chrome bar has no MENU key to summon it on most TV remotes. */
+    private fun showNavHintOnce() {
+        if (settings.get().navHintShown) return
+        settings.update(settings.get().copy(navHintShown = true))
+        Toast.makeText(this, R.string.nav_hint, Toast.LENGTH_LONG).show()
     }
 
     private fun showHome() {
@@ -224,6 +240,17 @@ class MainActivity : Activity() {
         historyFromHome = fromHome
         hideAllOverlays()
         historyView.show()
+    }
+
+    /** First launch only: write the shipped starter favorites. Guarded by a persisted
+     *  flag rather than an is-empty check — a user who deletes them must not get them
+     *  back. Existing installs have no flag in settings.json, so they seed once on upgrade.
+     *  Added in reverse: FavoritesOps.add prepends, so seeding back-to-front leaves the
+     *  grid in DefaultFavorites.ALL order. */
+    private fun seedDefaultFavorites() {
+        if (settings.get().seeded) return
+        DefaultFavorites.ALL.asReversed().forEach { favorites.add(it) }
+        settings.update(settings.get().copy(seeded = true))
     }
 
     private fun recordHistory(url: String, title: String?) {

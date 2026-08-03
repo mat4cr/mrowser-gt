@@ -45,6 +45,31 @@ class CursorGeometryTest {
         assertFalse(CursorGeometry.isAtBottomEdge(900f, 1000, 48f))
     }
 
+    @Test fun `no scroll up when the page is already at the top`() {
+        assertEquals(0, CursorGeometry.scrollStep(-1, 0f, 1000, 48f, 24, canScrollUp = false, canScrollDown = true))
+    }
+
+    @Test fun `scrolls up at the top edge while the page can still scroll`() {
+        assertEquals(-24, CursorGeometry.scrollStep(-1, 10f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    }
+
+    @Test fun `no scroll down when the page is already at the bottom`() {
+        assertEquals(0, CursorGeometry.scrollStep(1, 1000f, 1000, 48f, 24, canScrollUp = true, canScrollDown = false))
+    }
+
+    @Test fun `scrolls down at the bottom edge while the page can still scroll`() {
+        assertEquals(24, CursorGeometry.scrollStep(1, 990f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    }
+
+    @Test fun `no scroll away from either edge`() {
+        assertEquals(0, CursorGeometry.scrollStep(-1, 500f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+        assertEquals(0, CursorGeometry.scrollStep(1, 500f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    }
+
+    @Test fun `no scroll for horizontal or idle movement`() {
+        assertEquals(0, CursorGeometry.scrollStep(0, 0f, 1000, 48f, 24, canScrollUp = true, canScrollDown = true))
+    }
+
     @Test fun `multiplier scales the base speed`() {
         assertEquals(CursorGeometry.BASE_SPEED_PX * 0.5f, CursorGeometry.speedForHoldMs(0L, 0.5f), 0.001f)
     }

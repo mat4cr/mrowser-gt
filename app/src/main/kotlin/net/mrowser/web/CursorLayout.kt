@@ -30,6 +30,13 @@ class CursorLayout @JvmOverloads constructor(
     /** Set by the Activity; fired when BACK is pressed at the first page (no history left). */
     var onExitPage: () -> Unit = {}
 
+    /**
+     * Set by the Activity; fired when BACK is held. Summons the chrome bar.
+     * Returns true if it consumed the hold — false means "I did nothing with it"
+     * (e.g. during HTML5 fullscreen), and the release falls through to handleBack().
+     */
+    var onLongBack: () -> Boolean = { false }
+
     var playChip: android.view.View? = null
     var onChipClick: () -> Unit = {}
 
@@ -46,6 +53,12 @@ class CursorLayout @JvmOverloads constructor(
     private var longPressed = false
     private val longPress = Runnable { longPressed = true; cursor.toggleMode() }
 
+    private var backDown = false
+    private var backLongPressed = false
+    // Only a hold that onLongBack actually consumed counts as a long-press; a refused
+    // one leaves the flag false so the release still runs the normal BACK chain.
+    private val backLongPress = Runnable { backLongPressed = onLongBack() }
+
     init {
         setWillNotDraw(false)
         isFocusable = true
@@ -53,18 +66,16 @@ class CursorLayout @JvmOverloads constructor(
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK) {
-            if (event.action == KeyEvent.ACTION_UP) return handleBack()
-            return true
-        }
+        if (event.keyCode == KeyEvent.KEYCODE_BACK) return handleBackKey(event)
         if (event.keyCode == KeyEvent.KEYCODE_MENU) {
             if (event.action == KeyEvent.ACTION_UP) {
-                if (chrome.isActive) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
+                if (chrome.isVisible) chrome.onPageInteracted() else chrome.requestReveal(atTop = true)
             }
             return true
         }
-        // Only an actively-opened bar takes keys; a passive on-load reveal leaves the cursor working.
-        if (chrome.isActive) return super.dispatchKeyEvent(event)
+        // While the bar is up it takes the keys: let focus search move through its buttons
+        // and the URL field instead of driving the cursor.
+        if (chrome.isVisible) return super.dispatchKeyEvent(event)
 
         when (event.keyCode) {
             KeyEvent.KEYCODE_DPAD_CENTER, KeyEvent.KEYCODE_ENTER -> return handleOk(event)
@@ -96,7 +107,7 @@ class CursorLayout @JvmOverloads constructor(
             KeyEvent.ACTION_DOWN -> if (!okDown) {
                 okDown = true
                 longPressed = false
-                longPressHandler.postDelayed(longPress, 500)
+                longPressHandler.postDelayed(longPress, LONG_PRESS_MS)
             }
             KeyEvent.ACTION_UP -> {
                 okDown = false
@@ -113,6 +124,37 @@ class CursorLayout @JvmOverloads constructor(
         val chip = playChip ?: return false
         if (chip.visibility != android.view.View.VISIBLE) return false
         return x >= chip.left && x <= chip.right && y >= chip.top && y <= chip.bottom
+    }
+
+    /**
+     * BACK tap keeps every meaning it has today (see handleBack); BACK held summons
+     * the chrome bar. Most TV remotes have no MENU key, which was the only other way
+     * to open it. The routing itself is the pure BackGesture — this is just the
+     * applier: it owns the timer, the flags, and the BACK chain.
+     */
+    private fun handleBackKey(event: KeyEvent): Boolean {
+        when (BackGesture.decide(event.action, backDown, backLongPressed, chrome.isVisible)) {
+            BackGesture.Decision.ArmLongPress -> {
+                backDown = true
+                backLongPressed = false
+                longPressHandler.postDelayed(backLongPress, LONG_PRESS_MS)
+            }
+            BackGesture.Decision.BeginWithoutArming -> {
+                backDown = true
+                backLongPressed = false
+            }
+            BackGesture.Decision.RunTapChain -> {
+                backDown = false
+                longPressHandler.removeCallbacks(backLongPress)
+                return handleBack()
+            }
+            BackGesture.Decision.Swallow -> {
+                backDown = false
+                longPressHandler.removeCallbacks(backLongPress)
+            }
+            BackGesture.Decision.Ignore -> Unit
+        }
+        return true
     }
 
     private fun handleBack(): Boolean {
@@ -133,4 +175,6 @@ class CursorLayout @JvmOverloads constructor(
             canvas.drawCircle(cursor.x, cursor.y, r, outlinePaint)
         }
     }
+
+    companion object { const val LONG_PRESS_MS = 500L }
 }
