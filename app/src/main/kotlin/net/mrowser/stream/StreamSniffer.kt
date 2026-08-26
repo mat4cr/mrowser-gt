@@ -75,24 +75,4 @@ class StreamSniffer(
         val subtitles = SubtitlePlan.build(StreamCandidateSelector.selectSubtitles(candidates))
         return PlaybackRequest(candidate.url, headers, subtitles, pageUrl)
     }
-}            candidates.add(StreamCandidate(url, kind, seq.incrementAndGet()))
-            if (hasStream() && announced.compareAndSet(false, true)) {
-                onStreamAvailable()
-            }
-        }
-    }
-
-    fun hasStream(): Boolean =
-        candidates.any { it.kind == MediaUrlClassifier.MediaKind.MANIFEST_HLS }
-
-    fun bestRequest(): PlaybackRequest? {
-        val best = StreamCandidateSelector.selectBest(candidates) ?: return null
-        val headers = buildMap {
-            put("User-Agent", userAgent())
-            if (pageUrl.isNotEmpty()) put("Referer", pageUrl)
-            CookieManager.getInstance().getCookie(best.url)?.let { put("Cookie", it) }
-        }
-        val subtitles = SubtitlePlan.build(StreamCandidateSelector.selectSubtitles(candidates))
-        return PlaybackRequest(best.url, headers, subtitles, pageUrl)
-    }
 }
